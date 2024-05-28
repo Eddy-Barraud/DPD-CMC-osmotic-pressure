@@ -1,0 +1,86 @@
+# Create folder for NTensio
+variable dName string N${NTensio}_${runNb}
+print "Writing the output files to ${dName}"
+shell mkdir ${dName}
+
+
+units			lj
+comm_modify vel yes # store info of ghost atoms btw processors
+boundary		p p p # periodic at all axes
+atom_style		full
+
+bond_style		harmonic
+angle_style		harmonic
+dihedral_style		none
+improper_style		none
+special_bonds           lj 1.0 1.0 1.0 coul 1.0 1.0 1.0 # activate 1-2 1-3 1-4 interactions
+
+newton on
+processors * * * grid numa # use a two-level grid, using numa ressources
+
+dielectric 0.906010859 # Set the correction factor for water system
+
+timestep		0.02
+variable T equal 1.0
+variable rc equal 1.0
+variable pEq equal 69.48
+
+# eqRunLen must be a multiple of 100 000
+variable eqRunLen equal 1500000
+variable prodRunLen equal 1500000
+
+
+variable mySeed equal ceil(random(1,8420104,${seed})) # random seed different at each call
+
+# Box lenghts 30x30x40
+#variable xLen equal 30.0
+#variable yLen equal 30.0
+#variable zLen equal 40.0
+
+# Big box lenghts for random creation
+variable xLenBig equal 100*v_xLen
+variable yLenBig equal 100*v_yLen
+variable zLenBig equal 100*v_zLen
+
+# bead types
+variable Htype equal 1
+variable Ttype equal 2
+variable Ktype equal 3
+variable Wtype equal 4
+
+# Variables for the walls in Z axis :
+#variable    wall1Pos    equal   5.0
+#variable    wall2Pos    equal   35.0
+#variable    wallCutoff  equal   5.0 # Distance cutoff for harmonic repulsions
+
+variable    wallForce   equal   5.0 # Energy/distance^2
+variable    wallCutoffHi  equal   v_zLen-v_wall2Pos # Distance cutoff for harmonic repulsions
+variable    wallCutoffLo  equal   v_wall1Pos # Distance cutoff for harmonic repulsions
+variable    sigma       equal   1.0 # sigma used in LJ potential
+variable    VcVol       equal   abs(v_wall2Pos-v_wall1Pos)*v_xLen*v_yLen
+
+# Regions
+region dimBig block 0 ${xLenBig} 0 ${yLenBig} 0 ${zLenBig}
+region inVc block 0 ${xLen} 0 ${yLen} ${wall1Pos} ${wall2Pos}
+
+
+# common variables
+variable		R		    equal 0.00198722
+variable		sysvol		equal vol
+variable        sysdensity  equal count(all)/vol
+variable		coulomb		equal ecoul+elong
+variable		etotal		equal etotal
+variable		pe		    equal pe
+variable		ke		    equal ke
+variable		evdwl		equal evdwl
+variable		ebond		equal ebond
+variable		eangle		equal eangle
+variable		lx		    equal lx
+variable		ly		    equal ly
+variable		lz		    equal lz
+variable		zhi		    equal zhi
+variable		zlo		    equal zlo
+variable		p		    equal press
+variable		time        equal step*dt
+variable        zero        equal 0.0
+variable        systemp     equal temp

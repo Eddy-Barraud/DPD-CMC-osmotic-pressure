@@ -1,0 +1,42 @@
+## Box construction
+
+create_box 4 dimBig &
+bond/types 1 &
+angle/types 1 &
+extra/bond/per/atom 2 &
+extra/angle/per/atom 1 &
+extra/special/per/atom 4 
+
+
+molecule tensio 0.H1T4.structure.dat # read the topology of tensioactive
+create_atoms 0 random ${NTensio} ${mySeed} inVc mol tensio ${mySeed} overlap 1 maxtry 50000
+
+# Insert Potassium 
+create_atoms ${Ktype} random ${NTensio} ${mySeed} inVc overlap 1 maxtry 50000
+
+# Calculate how many water beads to add
+variable rho    equal   3.0
+variable vTot   equal   v_xLen*v_yLen*v_zLen
+variable NWater equal   round(v_rho*v_vTot-(v_NTensio*(v_lenTensio+1)))
+
+# Insert WATER
+create_atoms ${Wtype} random ${NWater} ${mySeed} dimBig overlap 0.1 maxtry 500000
+
+# Check if create_atoms issued a warning
+variable natoms equal count(all)
+variable expectedNAtoms equal v_NWater+v_NTensio*(v_lenTensio+1)
+print "There are ${natoms} inserted beads in the system over the ${expectedNAtoms} expected"
+
+if "${natoms} != ${expectedNAtoms}" then &
+  "print 'Error: create_atoms failed to insert all desired atoms.'" &
+  "quit 1"
+
+
+# Shrink the box size
+change_box all x final 0 ${xLen} y final 0 ${yLen} z final 0 ${zLen}
+
+# group of beads
+group       waterGrp       type        ${Wtype}
+group       notWaterGrp    subtract    all waterGrp
+group       tensioGrp      type        ${Htype} ${Ttype}
+group       KGrp          type        ${Ktype}

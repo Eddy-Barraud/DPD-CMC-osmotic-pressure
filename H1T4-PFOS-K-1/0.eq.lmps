@@ -1,0 +1,135 @@
+#  This is the control script for LAMMPS.
+# Run with OMP : -pk omp 20 -sf omp
+# Run with GPU : -pk gpu 0 pair/only yes neigh no -sf gpu
+# Run with both : -pk gpu 2 neigh no -pk omp 20 -sf hybrid gpu omp
+# Important : define variables {seed,runNb,NTensio,lenTensio}
+echo			both
+
+#***************************************************************************************
+# Initialize LAMMPS run for 3-d periodic
+#***************************************************************************************
+
+include 0.part.init.variables.lmps
+
+#***************************************************************************************
+# Stage 0: Preparation of the box
+#***************************************************************************************
+
+include 0.part.create.box.lmps
+
+
+#***************************************************************************************
+# Stage 1: Set the initial velocities and interaction parameters
+#***************************************************************************************
+
+include 0.part.cross.lmps
+
+# Create beads initial velocities
+velocity all create ${T} ${mySeed} dist gaussian mom yes rot no
+
+#***************************************************************************************
+# Stage 2: Minimization and NVT integration for 10000 steps with a timestep of 0.01
+#***************************************************************************************
+
+minimize 1.0e-4 1.0e-6 10000 10000
+
+write_dump 		 all custom ${dName}/1.ini.xyz id mol type q xs ys zs
+write_data      ${dName}/1.ini.topo.ovito.data
+
+dump 		trj all xyz/gz 500 ${dName}/2.trj.xyz.gz
+
+# already create walls to prevent solute to move around
+fix         walls   notWaterGrp    wall/harmonic/returned zlo ${wall1Pos} v_wallForce v_sigma ${wallCutoffLo} zhi ${wall2Pos} v_wallForce v_sigma ${wallCutoffHi} pbc yes
+
+#
+# Set up the fixed and all groups
+#
+
+thermo_style		custom step v_time press vol v_sysdensity temp ebond eangle edihed eimp evdwl ecoul elong pe ke
+thermo			500
+thermo_modify norm no
+
+fix			1 all nve
+
+fix			3 all ave/time 1 999 1000 v_time v_sysvol v_sysdensity v_etotal v_pe v_ke v_evdwl v_coulomb file ${dName}/2.averages.csv off 1
+fix			4 all ave/time 100  1  100 v_time v_sysvol v_sysdensity v_etotal v_pe v_ke v_evdwl v_coulomb file ${dName}/2.instantaneous.csv
+fix  		trjE all ave/time 10 1 10 v_etotal v_pe v_ke file ${dName}/2.energies.csv
+
+run			2000    upto
+
+undump trj
+unfix		trjE
+unfix		1
+unfix		3
+unfix		4
+unfix       walls
+
+
+#***************************************************************************************
+# Stage 3: Walls creation and control volume
+#             NPT integration for 500000 steps with a timestep of 0.01
+#             Temperature 1
+#             Pressure 69.48
+#             Walls 2
+#***************************************************************************************
+
+reset_timestep 0
+
+write_data      ${dName}/3.topo.ovito.dump
+dump 		trj notWaterGrp atom/gz 500 ${dName}/3.trj.notWater.xyz.gz
+
+# Add walls that constrain ions in a control volume that reduces along the run
+# The distance with particles must always be positive for wall forces
+# The effective control volume is zhi-zlo-2*cutoff = 10
+
+fix         walls   notWaterGrp    wall/harmonic/returned zlo ${wall1Pos} v_wallForce v_sigma ${wallCutoffLo} zhi ${wall2Pos} v_wallForce v_sigma ${wallCutoffHi} pbc yes
+fix_modify  walls   energy      yes
+
+# Calculate the osmotic pressure P=F/S
+variable    membraneSurface     equal   lx*ly*2 # 2 walls
+variable    wallAppliedForce    equal   abs(f_walls[1])+abs(f_walls[2])
+variable    osmoticPressure     equal   v_wallAppliedForce/v_membraneSurface
+variable    waterInVc           equal count(waterGrp,inVc)
+
+
+
+thermo_style		custom step v_time press vol v_sysdensity temp etotal evdwl ecoul pe ke f_walls v_osmoticPressure
+thermo 1000
+thermo_modify norm no
+
+# Create density bins
+compute slices all chunk/atom bin/1d z lower 0.2 compress yes units box
+fix tensioDens  tensioGrp    ave/chunk 10  4900 50000 slices density/number file ${dName}/3.tensio.density.csv
+fix KDens      KGrp        ave/chunk 10  4900 50000 slices density/number file ${dName}/3.K.density.csv
+fix WaterDens   waterGrp     ave/chunk 10  4900 50000 slices density/number file ${dName}/3.Water.density.csv
+
+
+# Watch the box Z dimension and average
+fix			LzEq all ave/time 10 50000 500000 v_lz
+variable    LzEq equal f_LzEq
+
+fix			1 all nve
+fix         2 all press/berendsen z ${pEq} ${pEq} 50
+fix			3 all ave/time 1  100  100 v_time v_p v_systemp v_sysvol v_sysdensity v_etotal v_pe v_ke v_evdwl v_coulomb v_waterInVc f_walls v_osmoticPressure file ${dName}/3.ave.csv
+fix         4 all momentum 500 linear 1 1 1 rescale
+
+run             ${eqRunLen}
+
+# Use the averaged box z lenghts for the next NVT simulation
+change_box all z final 0 ${LzEq}
+
+write_restart    ${dName}/3.eq.done.restart
+thermo_style multi # reset thermo
+write_dump 		 all xyz ${dName}/3.eq.done.xyz
+write_dump 		 all custom ${dName}/3.eq.done.sorted.xyz type x y z modify sort 1
+
+undump			trj
+unfix			1
+unfix			2
+unfix			3
+unfix			4
+unfix           walls
+unfix           KDens
+unfix           WaterDens
+unfix           tensioDens
+
