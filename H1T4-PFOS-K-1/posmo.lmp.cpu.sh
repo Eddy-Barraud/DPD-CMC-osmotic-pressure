@@ -37,11 +37,11 @@ handle_error() {
 trap handle_error ERR
 
 if [ ! -f $fName"/3.eq.done.restart" ]; then
-    mpirun -ppn 36 lmp -var seed `bash -c 'echo $((1 + $RANDOM))'` -var runNb $runNb -var NTensio $NTensio -var lenTensio $lenTensio  -var xLen $xLen -v yLen $yLen -v zLen $zLen -v wall1Pos $wall1Pos -v wall2Pos $wall2Pos -log $fName/eq.logs -in 0.eq.lmps
-    mpirun -ppn 36 lmp -var seed `bash -c 'echo $((1 + $RANDOM))'` -var runNb $runNb -var NTensio $NTensio -var lenTensio $lenTensio  -var xLen $xLen -v yLen $yLen -v zLen $zLen -v wall1Pos $wall1Pos -v wall2Pos $wall2Pos -log $fName/prod.logs -in 0.prod.lmps
+    mpirun -ppn 36 lmp -var seed `bash -c 'echo $((1 + $RANDOM))'` -var runNb $runNb -var NTensio $NTensio -var lenTensio $lenTensio  -var xLen $xLen -v yLen $yLen -v zLen $zLen -v wall1Pos $wall1Pos -v wall2Pos $wall2Pos -log $fName/eq.logs -in 0.eq.lmps -sf hybrid gpu omp -pk gpu 0
+    mpirun -ppn 36 lmp -var seed `bash -c 'echo $((1 + $RANDOM))'` -var runNb $runNb -var NTensio $NTensio -var lenTensio $lenTensio  -var xLen $xLen -v yLen $yLen -v zLen $zLen -v wall1Pos $wall1Pos -v wall2Pos $wall2Pos -log $fName/prod.logs -in 0.prod.lmps -sf hybrid gpu omp -pk gpu 0
 else
     echo "equilibration already done going directly to production"
-    mpirun -ppn 36 lmp -var seed `bash -c 'echo $((1 + $RANDOM))'` -var runNb $runNb -var NTensio $NTensio -var lenTensio $lenTensio  -var xLen $xLen -v yLen $yLen -v zLen $zLen -v wall1Pos $wall1Pos -v wall2Pos $wall2Pos -log $fName/prod.logs -in 0.prod.lmps
+    mpirun -ppn 36 lmp -var seed `bash -c 'echo $((1 + $RANDOM))'` -var runNb $runNb -var NTensio $NTensio -var lenTensio $lenTensio  -var xLen $xLen -v yLen $yLen -v zLen $zLen -v wall1Pos $wall1Pos -v wall2Pos $wall2Pos -log $fName/prod.logs -in 0.prod.lmps -sf hybrid gpu omp -pk gpu 0
 fi
 
 exit 0
