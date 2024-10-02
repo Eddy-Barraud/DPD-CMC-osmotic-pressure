@@ -19,31 +19,25 @@ angle_coeff 	     1 6.0 180	# K theta0 (degrees!)
 
 #*********** Define interaction parameters ****************
 pair_style none
-pair_style    hybrid/overlay dpd ${T} ${rc} ${mySeed} coul/slater/long 0.25 3
+pair_style    dpd/coul/slater/long/gpu ${T} ${rc} ${mySeed} 0.25 3
 
 
 kspace_style    pppm       5e-04
 
 # Speed up neighbors calculations
 # Increase neighbor lists, reducing CPU overhead each step
-neighbor 0.3 multi
-neigh_modify collection/interval 2 1.3 3.3
-neigh_modify every 2 delay 0 check no
+neighbor 1.0 multi
+neigh_modify every 1 delay 0 check yes
 comm_modify mode multi reduce/multi
 
-# Only ions have coulombic interactions
-pair_coeff              ${Htype}   ${Ktype}  coul/slater/long
-pair_coeff              ${Htype}   ${Htype}   coul/slater/long
-pair_coeff              ${Ktype}  ${Ktype}  coul/slater/long
 
-
-pair_coeff	${Wtype}	${Wtype}	dpd	78.000	4.500
-pair_coeff	${Ktype}	${Ktype}	dpd	78.000	4.500
-pair_coeff	${Ttype}	${Ttype}	dpd	78.000	4.500
-pair_coeff	${Htype}	${Htype}	dpd	78.000	4.500
-pair_coeff	${Htype}	${Wtype}	dpd	83.630	4.500
-pair_coeff	${Ttype}	${Wtype}	dpd	99.905	4.500
-pair_coeff	${Ktype}	${Wtype}	dpd	78.920	4.500
-pair_coeff	${Htype}	${Ttype}	dpd	78.000	4.500
-pair_coeff	${Htype}	${Ktype}	dpd	89.811	4.500
-pair_coeff	${Ttype}	${Ktype}	dpd	78.388	4.500
+pair_coeff	${Wtype}	${Wtype}	78.000	4.500
+pair_coeff	${Ktype}	${Ktype}	78.000	4.500 yes
+pair_coeff	${Ttype}	${Ttype}	78.000	4.500
+pair_coeff	${Htype}	${Htype}	78.000	4.500 yes
+pair_coeff	${Htype}	${Wtype}	83.630	4.500
+pair_coeff	${Ttype}	${Wtype}	99.905	4.500
+pair_coeff	${Ktype}	${Wtype}	78.920	4.500
+pair_coeff	${Htype}	${Ttype}	78.000	4.500
+pair_coeff	${Htype}	${Ktype}	89.811	4.500 yes
+pair_coeff	${Ttype}	${Ktype}	78.388	4.500
